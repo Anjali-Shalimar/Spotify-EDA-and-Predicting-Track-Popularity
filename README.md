@@ -1,12 +1,6 @@
 ## **1. Introduction** 
 Spotify is a digital podcast and music streaming service with over 248 million monthly active users across the globe. The paid service of the company known as 'Spotify Premium', currently has its user base growing at a staggering rate of +31% (year on year growth). While its keen features make an average user spend 25 hours per month on the service, the data behind the scenes is equally interesting to dive in and learn from. This 'king of music streaming' is widely recognized for its personalized music recommendations for its users, and the following analyses look into the key determinants that influence track popularity on Spotify. **The analyses is primarily designed to aid firms and music distributors that operate within the digital streaming services domain.**
 
-```{r pressure, echo=FALSE,fig.width= 200 , fig.height=20,fig.align="center",out.width = '100%'}
-# company logo 
-
-knitr::include_graphics("logo.jpg")
-```
-
 ### 1.1 Problem Statement
 There are two main objectives for this analysis.
 
