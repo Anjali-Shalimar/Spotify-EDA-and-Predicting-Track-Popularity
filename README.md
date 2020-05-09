@@ -1,4 +1,4 @@
-## **1. Introduction** {.tabset}
+## **1. Introduction** 
 Spotify is a digital podcast and music streaming service with over 248 million monthly active users across the globe. The paid service of the company known as 'Spotify Premium', currently has its user base growing at a staggering rate of +31% (year on year growth). While its keen features make an average user spend 25 hours per month on the service, the data behind the scenes is equally interesting to dive in and learn from. This 'king of music streaming' is widely recognized for its personalized music recommendations for its users, and the following analyses look into the key determinants that influence track popularity on Spotify. **The analyses is primarily designed to aid firms and music distributors that operate within the digital streaming services domain.**
 
 ```{r pressure, echo=FALSE,fig.width= 200 , fig.height=20,fig.align="center",out.width = '100%'}
@@ -26,7 +26,7 @@ The analyses are primarily designed to aid firms and music distributors that ope
 
 ***
 
-## **2. Packages Required** {.tabset}
+## **2. Packages Required** 
 
 Following are the packages required with their uses:
 
@@ -59,8 +59,7 @@ Following are the packages required with their uses:
 **wordcloud** = For word cloud generator
 
 **plotly** = For creating interactive web-based graphs
-## **3.  Summary of the Analysis**{.tabset}
-
+## **3.  Summary of the Analysis**
 ### **3.1 Summarizing the Problem Statement** 
 
 Tha analysis mainly focuses on giving key trends and insights to music artists and music distributors that operate within the digital streaming services domain. The general trends in popularity of tracks were identified for different genres of music and different album release eras. The key elements of similarity in terms of "title words" of highly popular tracks were compared against the less popular ones. Additionally the popularity class of a track was predicted and the key influencers of populairty were determined.
