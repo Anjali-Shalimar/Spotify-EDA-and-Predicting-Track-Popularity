@@ -1,0 +1,703 @@
+---
+title: "Spotify Analysis"
+author: "Anjali Shalimar"
+date: "5/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## **1. Introduction** {.tabset}
+Spotify is a digital podcast and music streaming service with over 248 million monthly active users across the globe. The paid service of the company known as 'Spotify Premium', currently has its user base growing at a staggering rate of +31% (year on year growth). While its keen features make an average user spend 25 hours per month on the service, the data behind the scenes is equally interesting to dive in and learn from. This 'king of music streaming' is widely recognized for its personalized music recommendations for its users, and the following analyses look into the key determinants that influence track popularity on Spotify. **The analyses is primarily designed to aid firms and music distributors that operate within the digital streaming services domain.**
+
+```{r pressure, echo=FALSE,fig.width= 200 , fig.height=20,fig.align="center",out.width = '100%'}
+# company logo 
+
+knitr::include_graphics("logo.jpg")
+```
+
+### 1.1 Problem Statement
+There are three main objectives for this analysis.
+
+a. Identify the general trends in music affinity of Spotify users
+
+b. Determine the key influencers of track popularity on Spotify and predict popularity class ( 'high' , 'medium' , 'low' )
+
+### 1.2 Implementation and Techniques
+
+The dataset contains information on the artist, genre, characteristics, and popularity of various tracks on Spotify. The cleaned data would be analyzed using EDA techniques and data mining techniques (such as regression, word tokenization and clustering) in order to implement the objectives(mentioned in 1.1). 
+
+A regression approach such as Random Forest / Multiple Linear Regression would help identify the variable importance in determining track popularity. Tokenization and NLP techniques would help to identify if there is a set of words (in the titles) that come together for more popular tracks. 
+
+### 1.3 Key Consumers of the Analysis
+
+The analyses are primarily designed to aid firms and music distributors that operate within the digital streaming services domain. Identifying user trends would help digital music distributors to better streamline their music offerings. The analysis would also help artists to understand their target consumers better (as the analysis is split by music genre).
+
+***
+
+## **2. Packages Required** {.tabset}
+
+Following are the packages required with their uses:
+
+**tidytext** = To convert text to and from tidy formats
+
+**DT** = HTML display of the data
+
+**tidyverse** = Allows data manipulation 
+
+**stringr** = Allows string operations
+
+**magrittr** = Pipe operator in r programming
+
+**ggplot2** = For graphical representation in r
+
+**dplyr** = For data manipulation in r
+
+**gridExtra** = Allows grod formating of ggplot figures
+
+**pracma** = Allows advanced numerical analyses
+
+**treemap** = Allows treemap visualizations 
+
+**tm** = For text mining
+
+**GGally** = Allows in-depth EDA , works in synchrony with ggplot
+
+**randomForest** = Creates random forest models 
+
+**wordcloud** = For word cloud generator
+
+**plotly** = For creating interactive web-based graphs
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+###########################################
+# Installing / Loading Necessary Packages #
+###########################################
+
+list_packages <- c("tidytext", "DT", "tidyverse", "stringr", "magrittr", "gridExtra",
+                   "pracma", "treemap", "tm", "GGally", "randomForest", "wordcloud",
+                   "plotly", "ggplot2", "dplyr", "data.table", "rmarkdown", "tinytex",
+                   "knitr","viridis","hrbrthemes","tidyr","corrplot","lubridate","tm",
+                   "SnowballC","wordcloud","RColorBrewer","rpart","factoextra","cluster","fpc","forcats")
+
+new_packages <- list_packages[!(list_packages %in% installed.packages()[,"Package"])]
+
+if( length(new_packages) ) install.packages(new_packages)
+
+lapply(list_packages, require, character.only = TRUE)
+```
+***
+## **3. Data Preparation** {.tabset}
+
+### 3.1 Original Data Source{.tabset} 
+
+Original Data Source can be found [here](https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv). 
+
+### 3.2 Explanation of Source Data{.tabset} 
+
+The data comes from Spotify and is sourced via the spotifyr package. The package was authored by Charlie Thompson,
+Josiah Parry, Donal Phipps, and Tom Wolff. The main purpose of the package was to obtain general metadata for songs (from Spotify's API) in an easier fashion. The updated data can be collected via the package, as it runs based on the API. The source data has 32833 observations and 23 variables. The dataset contains 15 missing values and these values have not been imputed in the original dataset. The variable 'track_id' is a unique song id, though we see 4477 duplicate values of this column, this is because one song can be associated with multiple genres on Spotify dataset.
+
+### 3.3 Data Importing and Cleaning{.tabset} 
+
+**Step 1** : Converting blanks cells to NA while importing the dataset
+```{r}
+#################
+# Download Data #
+#################
+
+spotify <-  read.csv('Master.csv', na.strings = c(""," ",NA))
+
+
+```
+**Step 2** : Identifying Missing Values in the dataset
+
+Missing values were identified for each variable. 15 missing values were identified in the dataset. These observations were removed as it formed a very small proportion (0.0005%) of the dataset.
+```{r}
+###################
+# Preprocess Data #
+###################
+
+# Identifying columns with missing values 
+
+list <-  colnames(spotify)
+for (i in 1:length(list)){
+                          dat <-  spotify[list[i]]
+                          print(paste("Number of missing values in column",list[i]," is : " ,sum(is.na(dat))))
+                         }
+spotify <-  na.omit(spotify)
+```
+**Step 3** : Understanding preliminary data structure and performing necessary type conversions of variables
+
+Variables that could help aid the impact of text mining, were converted into character variables. The trailing spaces of these variables were removed and the characters were converted to lower case.
+```{r message=FALSE, warning=FALSE , echo=T, results='hide'}
+#  identifying structure of the dataset
+
+str(spotify)
+
+#  necessary type conversions
+
+spotify$track_id <- tolower(trimws(as.character(spotify$track_id)))
+spotify$track_id <-  as.factor(spotify$track_id)
+
+spotify$track_name <- tolower(trimws(as.character(spotify$track_name)))
+
+spotify$track_artist <- tolower(trimws(as.character(spotify$track_artist)))
+
+spotify$track_album_id <- tolower(trimws(as.character(spotify$track_album_id)))
+
+spotify$track_album_name <- tolower(trimws(as.character(spotify$track_album_name)))
+
+spotify$playlist_name <- tolower(trimws(as.character(spotify$playlist_name)))
+
+spotify$playlist_id <- tolower(trimws(as.character(spotify$playlist_id)))
+
+spotify$playlist_genre <- tolower(trimws(as.character(spotify$playlist_genre)))
+
+spotify$playlist_subgenre <- tolower(trimws(as.character(spotify$playlist_subgenre)))
+
+# Converting "Album Release Date" into year format
+
+library(lubridate)
+spotify$track_album_release_date_yr <- as.Date(spotify$track_album_release_date, format = "%m/%d/%Y")
+spotify$track_album_release_date_yr <- format(as.Date(spotify$track_album_release_date_yr, "%y"),"%Y")
+spotify$track_album_release_date_yr <- as.numeric(spotify$track_album_release_date_yr)
+
+```
+**Step 4** : Identifying duplicate observations if any
+
+A user defined function is created to remove duplicate observations in the dataset. No duplicate observations were found in the dataset. Though the variable 'track_id' (while being a unique song identifier) has 4477 duplicate values because each song can be associated with multiple genres on spotify. Hence no manipulation was done on this variable so as to retain the association between tracks and genres.
+```{r}
+#  identifying duplicate observations in the dataset
+
+# user defined function to look for duplicated in the data
+func_duplicate <-  function(x){if(sum(duplicated(x))>0)
+                                 {x<- x %>% distinct()}else{print("No duplicate observations found in the dataset")}
+                              }
+
+func_duplicate(spotify)
+```
+### 3.4 Feature Engineering{.tabset}
+
+- "Album Release Era" looks into the era of album release date 
+
+- "Popularity Class" of a track groups tracks into high, medium , low popularity classes based on the quantile distribution of     the popularity score. If a track has a popularity score > 3rd quartile , it is classified as 'high'. If a track has a     
+   popularity score < 1st quartile it is classified as 'low' . Others are classified as medium
+   
+- Based on the 'speechiness variable' an indicator is created to determine if a track is a podcast/ music
+```{r}
+# Creating 'Album Realease Era'
+
+spotify$release_era<-ifelse( spotify$track_album_release_date_yr < 1970 , "1960's",
+                            ifelse( spotify$track_album_release_date_yr < 1980, "1970's",
+                            ifelse( spotify$track_album_release_date_yr < 1990, "1980's",
+                            ifelse( spotify$track_album_release_date_yr < 2000,"1990's",
+                            ifelse( spotify$track_album_release_date_yr < 2010 , "2000's","2010's")))))
+
+# Classifying tracks based on popularity score
+# a. Track populatiry < 1st quartile flagged as low popularity
+# b. Track populatiry >= 1st and < 3 rd quartile flagged as medium popularity
+# c.Track popularity higher than or equal to 3rd quartile flagged as high popularity
+
+spotify$popularity_class <- ifelse( spotify$track_popularity < 24 , "low",
+                                 ifelse( spotify$track_popularity >= 24 &spotify$track_popularity< 62, "medium","high"))
+
+spotify$popularity_class <-  as.factor(spotify$popularity_class)
+
+# Podcast / Music classificatin based on 'speechiness' variable
+
+spotify$podcast_music_cls <-  ifelse( spotify$speechiness >=0.66, "podcast", "music" )
+
+```
+
+### 3.5 Cleaned Dataset{.tabset} 
+
+Please find below a sample from the cleaned dataset.
+```{r,layout="l-body-outset"}
+#  Outputting Cleaned Data
+
+knitr::kable( head(spotify,3), align = "lccrr", caption = "A sample data") 
+
+```
+
+### 3.6 Summary of the Variables{.tabset} 
+
+Below is the summary of concerned variables for the analysis. The primary source of the data description can also be found [here](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-01-21/readme.md#spotify_songscsv) . "track_popularity" is one of the main variables of interest and the summary statistics of the variable has been provided. **Variables are not removed in the EDA process, hence a description of all these variables have been provided.**
+
+```{r echo=T, warning=FALSE}
+# reading data dictionary file
+a <- read.csv('dat_dict.csv',sep=',')
+
+knitr::kable(a, align = "lccrr")
+
+# summary statistics of the variable 'track_popularity'
+summary(spotify$track_popularity)
+```
+***
+## **4. Exploratory Data Analysis**{.tabset}
+
+### 4.1 Genre wise trends{.tabset}
+
+**Genre wise average rating and number of spotify tracks**
+
+*Key Insights*
+
+- While 'pop' genre has lower number of total tracks on spotify, it has the highest average popularity score amongst users
+
+- 'edm' and 'rap' have higher number of tracks on spotify, hence new artists in these genres on spotify face a stiffer 
+  competition in terms of track visibility
+```{r echo=TRUE, warning=FALSE}
+
+par(mfrow=c(1,2))
+
+# Genre wise average rating
+
+dat <-  spotify %>% select (playlist_genre , track_popularity , track_id,track_album_id) %>% 
+        group_by (playlist_genre) %>% summarise(avg_rating = mean(track_popularity),
+                                                 track_count = length(unique(track_id)),
+                                                 album_count = length(unique(track_album_id)))
+n <-  length(unique(spotify$playlist_genre))
+
+color_list <- hcl.colors(n, palette = "viridis", alpha = NULL, rev = FALSE, fixup = TRUE)
+
+p1 <- ggplot(dat, aes(x=reorder(dat$playlist_genre,-dat$avg_rating), y=dat$avg_rating),label=dat$avg_rating) +
+  
+      geom_segment( aes(x=reorder(dat$playlist_genre,dat$avg_rating), xend=dat$playlist_genre, y=0,    
+                        yend=dat$avg_rating),color=color_list[1:n]) +
+  
+      geom_point( size=5, color=color_list[1:n], fill=alpha(color_list[1:n], 0.3), alpha=0.7, shape=21, stroke=2) +
+  
+      theme_light() +ylab("Average Popularity Score") + xlab("Playlist Genre")+
+  
+      coord_flip() +
+  
+      theme(
+             panel.grid.major.y = element_blank(),
+             panel.grid.major.x = element_blank(),
+             panel.grid.minor.x = element_blank(),
+             panel.border = element_blank(),
+             axis.ticks.y = element_blank()) 
+
+
+
+# Genre wise number of tracks
+
+n <-  length(unique(spotify$playlist_genre))
+
+color_list <- hcl.colors(n, palette = "viridis", alpha = NULL, rev = FALSE, fixup = TRUE)
+
+p2 <- ggplot(dat, aes(x=reorder(dat$playlist_genre,-dat$track_count), y=dat$track_count),label=dat$track_count) +
+      geom_segment( aes(x=reorder(dat$playlist_genre,dat$track_count), xend=dat$playlist_genre, y=0,     
+                       yend=dat$track_count),color=color_list[1:n]) +
+      geom_point( size=5, color=color_list[1:n], fill=alpha(color_list[1:n], 0.3), alpha=0.7, shape=21, stroke=2) +
+      theme_light() +ylab("Total number of tracks") + xlab("Playlist Genre")+
+      coord_flip() +
+      theme( 
+             panel.grid.major.y = element_blank(),
+             panel.grid.major.x = element_blank(),
+             panel.grid.minor.x = element_blank(),
+             panel.border = element_blank(),
+             axis.ticks.y = element_blank()) 
+
+p1
+p2
+
+
+
+```
+
+**Density Plot by Genre**
+
+Genre wise popularity distribution varies for a given confidence interval. 
+
+```{r warning=FALSE}
+
+ggplot(data=spotify, aes(x=track_popularity, group=playlist_genre, fill=playlist_genre)) +
+geom_density(adjust=1.5) +
+theme_ipsum() +
+facet_wrap(~playlist_genre) +
+theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      axis.ticks.x=element_blank()
+    )
+```
+
+### 4.2 Correlation Factor Analysis{.tabset}
+
+**Correlation Matrix**
+
+*Key Insights*
+
+- Track popularity slightly decreases with higher song duration and with high instrumentalness of the track
+
+- Valence ( positivity) of a track is positively correlated to the danceability of the track
+```{r}
+# Correlation matrix
+nums <- unlist(lapply(spotify, is.numeric)) 
+corrplot(cor(spotify[,c("danceability","valence","speechiness","track_popularity","duration_ms","instrumentalness")]), order = "hclust")
+
+```
+
+**Are podcasts more popular than music tracks in spotify ?**
+
+On average podcasts are less popular than msuic tracks on spotify. While the number of podcasts are significantly less than musics tracks. Hence there is a clear opportunity to expand the user base and choices for podcasts on spotify.
+
+```{r}
+dat <-  spotify %>% select (podcast_music_cls , track_popularity , track_id) %>% 
+        group_by (podcast_music_cls) %>% summarise(avg_rating = mean(track_popularity),
+                                                 track_count = length(unique(track_id)))
+dat
+```
+
+### 4.3 Album Release Era wise Trends{.tabset}
+
+**Change in Genre Popularity over Album Release Era**
+
+*Key Insights*
+
+- Rock music of the early release era's are more popular than the newly released tracks amongst users
+
+- The popularity of the genre "R&B" is improving amongst the spotify user base, with newly released tracks of the 2010's having   higher popularity than the tracks released in 2000's , 90's and 80's  
+```{r echo=TRUE, warning=FALSE}
+
+# Summarizing track characteristics by Genre and Album Release Era 
+dat <-  spotify %>% select (release_era , playlist_genre,track_popularity ,  danceability ,
+                            energy , speechiness , valence , loudness , acousticness, 
+                            instrumentalness , liveness) %>% 
+        group_by (release_era ,playlist_genre) %>% 
+        summarise(rating = mean(track_popularity),danceability= mean(danceability),
+                  energy = mean(energy),speechiness=mean(speechiness),
+                  valence = mean(valence),acousticness = mean(acousticness),
+                  instrumentalness= mean(instrumentalness))
+library(plotly)    
+
+p <- dat %>%
+     plot_ly(
+     type = 'bar', 
+     x = fct_inorder(dat$release_era), 
+     y = dat$rating,
+     hoverinfo = 'text',
+     mode = 'markers', 
+     transforms = list(
+      list(
+        type = 'filter',
+        target = ~playlist_genre,
+       groups = dat$release_era,
+        operation = '=',
+        value = unique(spotify$playlist_genre)[1]
+      )
+  )) %>% layout(
+    updatemenus = list(
+      list(
+        type = 'dropdown',
+        active = 0,
+        buttons = list(
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[1]),
+               label = unique(spotify$playlist_genre)[1]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[2]),
+               label = unique(spotify$playlist_genre)[2]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[3]),
+               label = unique(spotify$playlist_genre)[3]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[4]),
+               label = unique(spotify$playlist_genre)[4]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[5]),
+               label = unique(spotify$playlist_genre)[5]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$playlist_genre)[6]),
+               label = unique(spotify$playlist_genre)[6])
+       )
+      )
+    )
+  )
+p
+
+```
+
+**Identifying Popular Genres ( for a chosen Album Release Era)**
+
+*Key Insights*
+
+- Amongst the newly released tracks, "pop" and "latin" music are ranked higher in terms of average popularity score 
+
+- Compared to 2000's , the latin music released in '2010's' have higher visibility and popularity amongst spotify users
+
+```{r echo=TRUE, warning=FALSE}
+ 
+p2 <- dat %>%
+     plot_ly(
+     type = 'bar', 
+     x = dat$playlist_genre, 
+     y = dat$rating,
+     hoverinfo = 'text',
+     mode = 'markers', 
+     transforms = list(
+      list(
+        type = 'filter',
+        target = ~release_era,
+       groups = dat$playlist_genre,
+        operation = '=',
+        value = unique(spotify$release_era)[1]
+      )
+  )) %>% layout(
+    updatemenus = list(
+      list(
+        type = 'dropdown',
+        active = 0,
+        buttons = list(
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[1]),
+               label = unique(spotify$release_era)[1]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[2]),
+               label = unique(spotify$release_era)[2]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[3]),
+               label = unique(spotify$release_era)[3]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[4]),
+               label = unique(spotify$release_era)[4]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[5]),
+               label = unique(spotify$release_era)[5]),
+          list(method = "restyle",
+               args = list("transforms[0].value", unique(spotify$release_era)[6]),
+               label = unique(spotify$release_era)[6])
+       )
+      )
+    )
+  )
+p2
+```
+
+### 4.4 Analysis Using Text Mining Techniques{.tabset}
+
+**Commonly occuring track titles by popularity**
+
+*Key Insights*
+
+There is a difference in the most frequent title words amongst highly popular music (vs. less popular ones). Tracks with the titles **'dance' , 'hits' , 'hip' , 'hop'** are more frequent in highly popular tracks than in less popular ones.
+
+**Word Cloud (of Titles) for Highly Popular Tracks **
+
+```{r echo=TRUE, warning=FALSE}
+# Generating wordcloud of titles for highly popular tracks
+dat_h <-  subset(spotify, popularity_class == 'high')
+
+dat_l <-  subset(spotify, popularity_class == 'low')
+
+dat_h <- str_replace_all(dat_h, "[^[:alnum:]]", " ")
+dat_h <- str_replace_all(dat_h, "[^a-zA-Z0-9]", " ")
+
+dat_l <- str_replace_all(dat_l, "[^[:alnum:]]", " ")
+dat_l <- str_replace_all(dat_l, "[^a-zA-Z0-9]", " ")
+
+docs <- Corpus(VectorSource(dat_h))
+
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+
+# Remove words like 'remix','feat','mix','edit'
+title_words <-  c("remix","mix","feat","edit","original","edm","rock","latin","pop","rap","r&b","music")
+docs <- tm_map(docs, removeWords, title_words)
+
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("blabla1", "blabla2")) 
+
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+# Text stemming
+# docs <- tm_map(docs, stemDocument)
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+set.seed(1234)
+w1 = wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+```
+
+**Word Cloud (of Titles) for Less Popular Tracks **
+```{r echo=TRUE, warning=FALSE}
+# word cloud for less popular tracks
+docs <- Corpus(VectorSource(dat_l))
+
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+
+# Remove words like 'remix','feat','mix','edit'
+title_words <-  c("remix","mix","feat","edit","original","edm","rock","latin","pop","rap","r&b","music")
+docs <- tm_map(docs, removeWords, title_words)
+
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("blabla1", "blabla2")) 
+
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+dtm <- TermDocumentMatrix(docs)
+
+m <- as.matrix(dtm)
+
+v <- sort(rowSums(m),decreasing=TRUE)
+
+d <- data.frame(word = names(v),freq=v)
+
+set.seed(1234)
+
+w2 <-  wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+w2
+
+```
+
+### 4.5 Predicting Track Popularity Class {.tabset}
+
+The following section predicts the popularity class ('high' , 'medium' , 'low') of a track. While the predictive model gives a satisfactory performance, the most key element is identifying the importance of various variables in the prediction performance.
+
+We observe that "song_duration" , "instrumentalness" , "loudness" are three key attributes that determine the popularity of a track in spotify. This is also in line with the correlation matrix analysis results.
+
+**Random Forest Classification Model**
+```{r}
+# Train - Test Split 
+
+sample_index <- sample( nrow(spotify),nrow(spotify)*0.70 )
+
+names <- c("popularity_class","playlist_genre","danceability","energy","key","loudness","mode","speechiness",
+           "acousticness","instrumentalness","liveness","valence","tempo","duration_ms")
+
+# Using 70% data for training
+spotify_train <- spotify[sample_index,names]
+
+# Using 30% data for testing
+spotify_test <- spotify[-sample_index,names]
+
+#converting into factors
+spotify_train$playlist_genre <-  as.factor(spotify_train$playlist_genre)
+spotify_test$playlist_genre <-  as.factor(spotify_test$playlist_genre)
+spotify_train$popularity_class <-  as.factor(spotify_train$popularity_class)
+spotify_test$popularity_class <-  as.factor(spotify_test$popularity_class)
+
+
+# Building Random Forest Model
+
+spotify.rf <- randomForest(popularity_class~., data = spotify_train, ntree=500 ,importance=T)
+spotify.rf
+
+
+# prediction performance in test
+spotify.rf.pred.test<- predict(spotify.rf, newdata=spotify_test, type = "class")
+table(spotify_test$popularity_class, spotify.rf.pred.test, dnn = c("True", "Pred"))
+
+# Misclassification rate of 37.8%
+
+```
+
+**Important factors that influence track popularity prediction**
+```{r}
+#Understanding the most important influencers of popularity
+varImpPlot(spotify.rf)
+
+```
+
+## **6.  Summary of the Analysis**{.tabset}
+
+### **6.1 Summarizing the Problem Statement** 
+
+Tha analysis mainly focuses on giving key trends and insights to music artists and music distributors that operate within the digital streaming services domain. The general trends in popularity of tracks were identified for different genres of music and different album release eras. The key elements of similarity in terms of "title words" of highly popular tracks were compared against the less popular ones. Additionally the popularity class of a track was predicted and the key influencers of populairty were determined.
+
+### **6.2 Summarizing the Implementation** 
+
+- Packages such as Plotly was used to represent key trends in an interactive fashion
+
+- Text mininng techniques were used to generate word clouds of track titles (for various popularity classes)
+
+- Random Forest Classifier was used to predict the popularity class of a track 
+
+### **6.3 Summary of Insights and its Implications (to the consumers of this analysis)**
+
+- While 'pop' genre has lower number of total tracks on spotify, it has the highest average popularity score amongst users
+
+- 'edm' and 'rap' have higher number of tracks on spotify, hence new artists of these genres on spotify face a stiffer 
+  competition in terms of track visibility
+  
+- Track popularity slightly decreases with higher song duration and with high instrumentalness of the track
+
+- Tracks with higher danceability index tends to have higher valence ( positivity) scores
+
+- Rock music of the early release eras are more popular than the newly released tracks amongst users
+
+- The popularity of the genre "R&B" is improving amongst the spotify user base, with newly released tracks of the 2010's having   higher popularity than the tracks released in 2000's , 90's and 80's. Artists of this genre, would hence have a 
+  higher scope and visibility amongst spotify users. Music distributors could hence focus more on this genre
+  
+- Tracks with the titles **'dance' , 'hits' , 'hip' , 'hop'** are more frequent in highly popular tracks than in less popular 
+  ones
+   
+- "song_duration" , "instrumentalness" , "loudness" are three key attributes that determine the popularity of a track in 
+  spotify
+  
+### **6.4 Limitations of the analysis**
+
+- The analysis is on a static data set. This could be further improved by having data scraped dynamically through a web API
+
+- User Reviews if available could be used to further understand the key aspects that increase the affinity of 
+  user to a music/podcast track
+
+- While Random Forest Classifier gives a satusfactory prediction performance, we could also look into neural networks to improve   the prediction performance
+
+***
+### *References*
+
+[*https://www.statista.com/statistics/813876/spotify-monthly-active-users-time-spent-listening/*](https://www.statista.com/statistics/813876/spotify-monthly-active-users-time-spent-listening/)
+
+[*https://qz.com/1736762/spotify-grows-monthly-active-users-and-turns-profit-shares-jump-15-percent/ *](https://qz.com/1736762/spotify-grows-monthly-active-users-and-turns-profit-shares-jump-15-percent/)
+
+[*https://www.tunefab.com/spotify/spotify-bluetooth.html*](https://www.tunefab.com/spotify/spotify-bluetooth.html)
+
+  
+
+
+
+
+
+
